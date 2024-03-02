@@ -45,7 +45,7 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        <div className="p-[10rem] bg-[#d8d4d4] m-10 rounded-xl flex justify-center items-center flex-col">hello world</div>
+        <div className="p-[10rem] bg-[#d8d4d4] m-10 rounded-xl flex justify-center items-center flex-col">yarn build</div>
       </div>
     </div>
   );
