@@ -26,7 +26,7 @@ const Galeri = () => {
           <p className="text-[#fff] text-5xl">00</p>
         </div>
         {/* table */}
-        <div className="mx-10 mt-10 rounded-2xl h-[30rem] bg-[#f5f1f1]">
+        <div className="mx-10 mt-10 rounded-2xl h-[28rem] bg-[#f5f1f1]">
           <div className="h-[3rem] bg-[#524b4b] rounded-t-2xl flex justify-between items-center">
             <button className="ms-5 bg-[#e4d0d0] bg-opacity-20 w-[6rem] h-[2rem] rounded-lg text-[#d8d4d4] flex items-center justify-center" onClick={handleAddPostClick}>
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-4">

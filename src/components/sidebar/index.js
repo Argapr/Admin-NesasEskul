@@ -7,7 +7,7 @@ const Sidebar = () => {
   const router = useRouter();
 
   return (
-    <div className="w-[15rem] bg-[#2F2D2D] m-5 rounded-3xl">
+    <div className="w-[15rem] bg-[#2F2D2D] m-5 rounded-3xl flex flex-col justify-between">
       <div className="h-[7rem] text-white flex items-center justify-center">
         <Image src="/IMG/logo.png" alt="" height={50} width={150} />
       </div>
@@ -134,7 +134,7 @@ const Sidebar = () => {
           </Link>
         </li>
       </ul>
-      <div className="profil h-[3rem] rounded-xl mt-[19rem] rounded-b-xl m-2 bg-[#777575] flex items-center justify-between">
+      <div className=" mt-auto profil h-[3rem] rounded-xl rounded-b-xl m-2 bg-[#777575] flex items-center justify-between">
         <div className="ms-5 flex">
           <div className="h-10 w-10 rounded-full bg-[#585555]"></div>
           <p className="ms-2 font-semibold text-[#ccc6c6]">Admin</p>

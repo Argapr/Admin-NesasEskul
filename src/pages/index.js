@@ -108,9 +108,9 @@ const Dashboard = () => {
                 <div></div>
               </div>
             </div>
-            <div className="mt-10 p-[13rem] bg-[#fff] rounded-xl flex justify-center items-center flex-col">Grafik</div>
+            <div className="mt-10 p-[11.5rem] bg-[#fff] rounded-xl flex justify-center items-center flex-col">Grafik</div>
           </div>
-          <di className="w-[18rem] h-[35rem] mt-5 bg-[#fff] rounded-xl">
+          <di className="w-[18rem] h-[32rem] mt-5 bg-[#fff] rounded-xl">
             <div className="w-full h-[4rem] rounded-t-xl bg-[#524b4b] items-center flex">
               <p className="text-[#fff] ms-5 text-xl">Kategori Data Fitur</p>
             </div>
