@@ -1,10 +1,66 @@
 import Image from "next/image";
 import Link from "next/link";
 import Sidebar from "../../components/sidebar/index";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { db } from "../../components/firebase/firebaseConfig";
+import { collection, getDocs, addDoc } from "firebase/firestore";
 
-const Galeri = () => {
-  const [showOverlay, setShowOverlay] = useState(false); // State untuk menampilkan atau menyembunyikan overlay
+async function fetchDataFromFirestore() {
+  const querySnapshot = await getDocs(collection(db, "Profil"));
+  const data = [];
+  querySnapshot.forEach((doc) => {
+    data.push({ id: doc.id, ...doc.data() });
+  });
+  return data;
+}
+
+async function addDataToFirestore(name, image, pembimbing, jumlah, deskripsi) {
+  try {
+    const docRef = await addDoc(collection(db, "Profil"), {
+      name: name,
+      image: image,
+      pembimbing: pembimbing,
+      jumlah: jumlah,
+      deskripsi: deskripsi,
+    });
+    console.log("Document written with ID: ", docRef.id);
+    return true;
+  } catch (error) {
+    console.error("Error adding document: ", error);
+    return false;
+  }
+}
+
+const Profil = () => {
+  const [name, setName] = useState("");
+  const [image, setImage] = useState("");
+  const [pembimbing, setPembimbing] = useState("");
+  const [jumlah, setJumlah] = useState("");
+  const [deskripsi, setDeskripsi] = useState("");
+  const [profilData, setProfilData] = useState([]);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+
+  useEffect(() => {
+    async function fetchData() {
+      const data = await fetchDataFromFirestore();
+      setProfilData(data.sort((a, b) => a.name.localeCompare(b.name))); // Sort data by name
+    }
+    fetchData();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const added = await addDataToFirestore(name, image, pembimbing, jumlah, deskripsi);
+    if (added) {
+      setName("");
+      setImage("");
+      setPembimbing("");
+      setJumlah("");
+      setDeskripsi("");
+      setShowAlert(true);
+    }
+  };
 
   const handleAddPostClick = () => {
     setShowOverlay(true); // Menampilkan overlay ketika tombol "Tambah" diklik
@@ -23,7 +79,7 @@ const Galeri = () => {
         </div>
         <div className="p-5 rounded-xl bg-[#524b4b] mt-5 mx-10 flex justify-center items-center flex-col">
           <p className="text-[#fff]">Total</p>
-          <p className="text-[#fff] text-5xl">00</p>
+          <p className="text-[#fff] text-5xl">{profilData.length.toString().padStart(2, "0")}</p>
         </div>
         {/* table */}
         <div className="mx-10 mt-10 rounded-2xl h-[28rem] bg-[#f5f1f1]">
@@ -58,66 +114,24 @@ const Galeri = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td className="border px-2 py-2 font-bold text-center">1</td>
-                    <td className="border px-4 py-2">John Doe</td>
-                    <td className="border px-4 py-2">30</td>
-                    <td className="border px-4 py-2">Aji Setiawan</td>
-                    <td className="border px-4 py-2">16/09</td>
-                    <td className="border px-4 py-2">
-                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
-                      commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim
-                      id est laborum.
-                    </td>
-                    <td className="border py-2 flex justify-evenly items-center">
-                      <button className="rounded-xl h-7 w-auto bg-[#E3E4A9] items-center flex justify-center">
-                        <p className="m-5 text-[#edff47]">Edit</p>
-                      </button>
-                      <button className="rounded-xl h-7 w-auto bg-[#E4A9A9] items-center flex justify-center">
-                        <p className="m-5 text-[#EA4444]">Delete</p>
-                      </button>
-                    </td>
-                  </tr>
-                  <tr className="bg-[#e7e5e5]">
-                    <td className="border px-2 py-2 font-bold text-center">2</td>
-                    <td className="border px-4 py-2">Jane Doe</td>
-                    <td className="border px-4 py-2">25</td>
-                    <td className="border px-4 py-2">Aji Setiawan</td>
-                    <td className="border px-4 py-2">16/09</td>
-                    <td className="border px-4 py-2">
-                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
-                      commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim
-                      id est laborum.
-                    </td>
-                    <td className="border py-2 flex justify-evenly items-center">
-                      <button className="rounded-xl h-7 w-auto bg-[#E3E4A9] items-center flex justify-center">
-                        <p className="m-5 text-[#edff47]">Edit</p>
-                      </button>
-                      <button className="rounded-xl h-7 w-auto bg-[#E4A9A9] items-center flex justify-center">
-                        <p className="m-5 text-[#EA4444]">Delete</p>
-                      </button>
-                    </td>
-                  </tr>
-                  <tr className="items-center">
-                    <td className="border px-2 py-2 font-bold text-center">3</td>
-                    <td className="border px-4 py-2">Alice</td>
-                    <td className="border px-4 py-2">35</td>
-                    <td className="border px-4 py-2">Aji Setiawan</td>
-                    <td className="border px-4 py-2">16/09</td>
-                    <td className="border px-4 py-2">
-                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
-                      commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim
-                      id est laborum.
-                    </td>
-                    <td className="border h-auto py-2 flex justify-evenly items-center">
-                      <button className="rounded-xl h-7 w-auto bg-[#E3E4A9] items-center flex justify-center">
-                        <p className="m-5 text-[#edff47]">Edit</p>
-                      </button>
-                      <button className="rounded-xl h-7 w-auto bg-[#E4A9A9] items-center flex justify-center">
-                        <p className="m-5 text-[#EA4444]">Delete</p>
-                      </button>
-                    </td>
-                  </tr>
+                  {profilData.map((profil, index) => (
+                    <tr key={profil.id} className={index % 2 === 0 ? "bg-transparent" : "bg-gray-200"}>
+                      <td className="border px-2 py-2 font-bold text-center">{index + 1}</td>
+                      <td className="border px-4 py-2">{profil.name}</td>
+                      <td className="border px-4 py-2">{profil.image}</td>
+                      <td className="border px-4 py-2">{profil.pembimbing}</td>
+                      <td className="border px-4 py-2">{profil.jumlah}</td>
+                      <td className="border px-4 py-2">{profil.deskripsi}</td>
+                      <td className="border py-2 flex justify-evenly items-center">
+                        <button className="rounded-xl h-7 w-auto bg-[#E3E4A9] items-center flex justify-center">
+                          <p className="m-5 text-[#ecff40]">Edit</p>
+                        </button>
+                        <button className="rounded-xl h-7 w-auto bg-[#E4A9A9] items-center flex justify-center">
+                          <p className="m-5 text-[#EA4444]">Delete</p>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -141,33 +155,59 @@ const Galeri = () => {
               </svg>
             </button>
             <p className="text-[#000] font-semibold text-3xl ms-10">Post Profil</p>
-            <form className="h-[22rem] w-full border border-[#a8a0a0] rounded-xl mt-3">
+            <form className="h-[25rem] w-full border border-[#a8a0a0] rounded-xl mt-3" onSubmit={handleSubmit}>
               <div className="grid grid-cols-2 gap-4 mx-10 mt-5">
                 <div>
                   <label htmlFor="nama">Nama Eskul</label>
-                  <input id="nama" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" />
+                  <input id="nama" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" value={name} onChange={(e) => setName(e.target.value)} required />
                 </div>
                 <div>
                   <label htmlFor="nama-pembimbing">Nama Pembimbing</label>
-                  <input id="nama-pembimbing" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" />
+                  <input id="nama-pembimbing" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" value={pembimbing} onChange={(e) => setPembimbing(e.target.value)} required />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mx-10 mt-5">
                 <div>
                   <label htmlFor="img">Image Eskul</label>
-                  <input type="file" id="img" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4 py-2 flex items-center justify-center bg-white text-[#333] cursor-pointer" />
+                  <input
+                    type="file"
+                    id="img"
+                    className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4 py-2 flex items-center justify-center bg-white text-[#333] cursor-pointer"
+                    value={image}
+                    onChange={(e) => setImage(e.target.value)}
+                    required
+                  />
                 </div>
                 <div>
                   <label htmlFor="anggota">Jumlah Anggota</label>
-                  <input type="number" name="jmlAnggota" min={1} max={150} className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" />
+                  <input type="number" name="jmlAnggota" min={1} max={150} className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" value={jumlah} onChange={(e) => setJumlah(e.target.value)} required />
                 </div>
               </div>
               <div className="mx-10 mt-5">
                 <label htmlFor="deskripsi">Deskripsi Eskul</label>
-                <textarea id="deskripsi" className="h-[6rem] rounded-lg border border-[#a8a0a0] w-full focus:outline-none px-4"></textarea>
+                <textarea id="deskripsi" className="h-[6rem] rounded-lg border border-[#a8a0a0] w-full focus:outline-none px-4" value={deskripsi} onChange={(e) => setDeskripsi(e.target.value)} required></textarea>
+              </div>
+              <div className="mx-10 justify-start flex">
+                <button className="h-10 w-[5rem] mt-4 rounded-xl bg-gray-500 text-[#fff]" type="submit">
+                  Post
+                </button>
               </div>
             </form>
-            <button className="h-10 w-[5rem] mt-5 rounded-xl bg-gray-500 text-[#fff]">Post</button>
+          </div>
+        </div>
+      )}
+      {showAlert && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-[#dfd5d5] rounded-lg shadow-lg p-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-800">Success!</h2>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowAlert(false)}>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-gray-700 mt-2">Data berhasil ditambahkan!</p>
           </div>
         </div>
       )}
@@ -175,4 +215,4 @@ const Galeri = () => {
   );
 };
 
-export default Galeri;
+export default Profil;

@@ -1,83 +1,67 @@
 import Image from "next/image";
 import Link from "next/link";
 import Sidebar from "../../components/sidebar/index";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { db } from "../../components/firebase/firebaseConfig";
-import { collection, addDoc, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, addDoc } from "firebase/firestore";
+
+async function fetchDataFromFirestore() {
+  const querySnapshot = await getDocs(collection(db, "Galeri"));
+  const data = [];
+  querySnapshot.forEach((doc) => {
+    data.push({ id: doc.id, ...doc.data() });
+  });
+  return data;
+}
+
+async function addDataToFirestore(name, image, kategori) {
+  try {
+    const docRef = await addDoc(collection(db, "Galeri"), {
+      name: name,
+      image: image,
+      kategori: kategori,
+    });
+    console.log("Document written with ID: ", docRef.id);
+    return true;
+  } catch (error) {
+    console.error("Error adding document: ", error);
+    return false;
+  }
+}
 
 const Galeri = () => {
-  const [items, setItems] = useState([]);
-  const [itemName, setItemName] = useState("");
-  const [itemImage, setItemImage] = useState("");
-  const [itemKategori, setItemKategori] = useState("");
-  const [nextItemNumber, setNextItemNumber] = useState(1);
-  const [showOverlay, setShowOverlay] = useState(false); // State untuk menampilkan atau menyembunyikan overlay
+  const [name, setName] = useState("");
+  const [image, setImage] = useState("");
+  const [kategori, setKategori] = useState("");
+  const [galeriData, setGaleriData] = useState([]);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
 
   useEffect(() => {
+    async function fetchData() {
+      const data = await fetchDataFromFirestore();
+      setGaleriData(data.sort((a, b) => a.name.localeCompare(b.name))); // Sort data by name
+    }
     fetchData();
-    fetchNextItemNumber();
   }, []);
 
-  useEffect(() => {
-    sortItems();
-  }, [items]);
-
-  const fetchData = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, "Galeri"));
-      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setItems(data);
-    } catch (error) {
-      console.error("Error fetching data: ", error);
-    }
-  };
-
-  const fetchNextItemNumber = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, "Galeri"));
-      const numberOfItems = snapshot.docs.length;
-      setNextItemNumber(numberOfItems + 1); // Nomor urut berikutnya adalah jumlah total item ditambah 1
-    } catch (error) {
-      console.error("Error fetching next item number: ", error);
-    }
-  };
-
-  const sortItems = () => {
-    setItems([...items].sort((a, b) => a.no - b.no));
-  };
-
-  const addItem = async () => {
-    try {
-      if (itemName.trim() !== "" && itemImage.trim() !== "" && itemKategori.trim() !== "") {
-        await addDoc(collection(db, "Galeri"), { no: nextItemNumber, name: itemName, image: itemImage, kategori: itemKategori });
-        setItemName("");
-        setItemImage("");
-        setItemKategori("");
-        await fetchData(); // Memperbarui data dari Firebase
-        setNextItemNumber(nextItemNumber + 1); // Menambahkan nomor urut untuk item baru
-        sortItems(); // Mengurutkan item setelah menambahkan item baru
-        setShowOverlay(false); // Menyembunyikan overlay setelah menambahkan item
-      }
-    } catch (error) {
-      console.error("Error adding item: ", error);
-    }
-  };
-
-  const deleteItem = async (id) => {
-    try {
-      await deleteDoc(doc(db, "Galeri", id));
-      fetchData();
-    } catch (error) {
-      console.error("Error deleting item: ", error);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const added = await addDataToFirestore(name, image, kategori);
+    if (added) {
+      setName("");
+      setImage("");
+      setKategori("");
+      setShowAlert(true);
     }
   };
 
   const handleAddPostClick = () => {
-    setShowOverlay(true); // Menampilkan overlay ketika tombol "Tambah" diklik
+    setShowOverlay(true);
   };
 
   const handleCloseOverlay = () => {
-    setShowOverlay(false); // Menyembunyikan overlay ketika tombol close di dalam overlay diklik
+    setShowOverlay(false);
   };
 
   return (
@@ -90,9 +74,8 @@ const Galeri = () => {
         </div>
         <div className="p-5 rounded-xl bg-[#524b4b] mt-5 mx-10 flex justify-center items-center flex-col">
           <p className="text-[#fff]">Total</p>
-          <p className="text-[#fff] text-5xl">00</p>
+          <p className="text-[#fff] text-5xl">{galeriData.length.toString().padStart(2, "0")}</p>
         </div>
-
         <div className="mx-10 mt-10 rounded-2xl h-[28rem] bg-[#f5f1f1]">
           <div className="h-[3rem] bg-[#524b4b] rounded-t-2xl flex justify-between items-center">
             <button className="ms-5 bg-[#e4d0d0] bg-opacity-20 w-[6rem] h-[2rem] rounded-lg text-[#d8d4d4] flex items-center justify-center" onClick={handleAddPostClick}>
@@ -111,7 +94,7 @@ const Galeri = () => {
             </div>
           </div>
           <div className="m-5">
-            <div className="overflow-x-auto rounded-xl">
+            <div className="rounded-2xl h-[22rem] bg-[#f5f1f1] overflow-x-auto">
               <table className="table-auto w-full border-collapse border border-gray-200">
                 <thead>
                   <tr className="bg-gray-200">
@@ -123,14 +106,17 @@ const Galeri = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="border px-2 py-2 font-bold text-center">{item.no}</td>
-                      <td className="border px-4 py-2">{item.name}</td>
-                      <td className="border px-4 py-2">{item.image}</td>
-                      <td className="border px-4 py-2">{item.kategori}</td>
+                  {galeriData.map((galeri, index) => (
+                    <tr key={galeri.id} className={index % 2 === 0 ? "bg-transparent" : "bg-gray-200"}>
+                      <td className="border px-2 py-2 font-bold text-center">{index + 1}</td>
+                      <td className="border px-4 py-2">{galeri.name}</td>
+                      <td className="border px-4 py-2">{galeri.image}</td>
+                      <td className="border px-4 py-2">{galeri.kategori}</td>
                       <td className="border py-2 flex justify-evenly items-center">
-                        <button onClick={() => deleteItem(item.id)} className="rounded-xl h-7 w-auto bg-[#E4A9A9] items-center flex justify-center">
+                        <button className="rounded-xl h-7 w-auto bg-[#E3E4A9] items-center flex justify-center">
+                          <p className="m-5 text-[#ecff40]">Edit</p>
+                        </button>
+                        <button className="rounded-xl h-7 w-auto bg-[#E4A9A9] items-center flex justify-center">
                           <p className="m-5 text-[#EA4444]">Delete</p>
                         </button>
                       </td>
@@ -144,9 +130,8 @@ const Galeri = () => {
       </div>
       {showOverlay && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-          <div className="bg-white p-8 rounded-lg w-[70rem] h-[30rem]">
+          <div className="bg-white p-8 rounded-lg w-[68rem] h-[29rem]">
             <button type="button" className="rounded-full h-10 w-10 bg-[#f1eeee] items-center flex justify-center" onClick={handleCloseOverlay}>
-              {/* Close icon */}
               <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="#000000" className="w-5">
                 <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
                 <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
@@ -159,36 +144,34 @@ const Galeri = () => {
               </svg>
             </button>
             <p className="text-[#000] font-semibold text-3xl ms-10">Post Galeri</p>
-            {/* Form to add new item */}
-            {/* Your existing form */}
-            <form className="h-[17rem] w-full border border-[#a8a0a0] rounded-xl mt-3">
+            <form className="h-[19rem] w-full border border-[#a8a0a0] rounded-xl mt-3" onSubmit={handleSubmit}>
               <div className="ms-10 mt-5">
-                <label htmlFor="nama" className="">
-                  Nama Eskul
-                </label>
+                <label htmlFor="nama">Nama Eskul</label>
                 <br />
-                <input id="nama" type="text" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Nama Eskul" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-[61rem] focus:outline-none px-4" />
+                <input id="nama" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-[59rem] focus:outline-none px-4" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
               <div className="grid grid-cols-2 gap-4 mx-10 mt-10">
                 <div>
                   <label htmlFor="img">Image Eskul</label>
                   <input
-                    type="text"
-                    value={itemImage}
-                    onChange={(e) => setItemImage(e.target.value)}
-                    placeholder="Image Eskul"
+                    type="file"
+                    id="img"
                     className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4 py-2 flex items-center justify-center bg-white text-[#333] cursor-pointer"
+                    value={image}
+                    onChange={(e) => setImage(e.target.value)}
+                    required
                   />
                 </div>
                 <div>
                   <label htmlFor="cars">Kategori</label>
                   <div className="relative">
                     <select
-                      value={itemKategori}
-                      onChange={(e) => setItemKategori(e.target.value)}
                       name="cars"
                       id="cars"
                       className="appearance-none w-full bg-transparent border border-[#a8a0a0] py-3 pl-3 rounded-xl leading-tight focus:outline-none focus:bg-[#5f5a5a] focus:border-[#fff] text-[#d6d6d6]"
+                      value={kategori}
+                      onChange={(e) => setKategori(e.target.value)}
+                      required
                     >
                       <option value="">Kategori</option>
                       <option value="keagamaan">Keagamaan</option>
@@ -208,11 +191,27 @@ const Galeri = () => {
                   </div>
                 </div>
               </div>
+              <div className="mx-10 justify-start flex">
+                <button className="h-10 w-[5rem] mt-8 rounded-xl bg-gray-500 text-[#fff]" type="submit">
+                  Post
+                </button>
+              </div>
             </form>
-
-            <button className="h-10 w-[5rem] mt-5 rounded-xl bg-gray-500 text-[#fff]" onClick={addItem}>
-              Post
-            </button>
+          </div>
+        </div>
+      )}
+      {showAlert && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-[#dfd5d5] rounded-lg shadow-lg p-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-800">Success!</h2>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowAlert(false)}>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-gray-700 mt-2">Data berhasil ditambahkan!</p>
           </div>
         </div>
       )}

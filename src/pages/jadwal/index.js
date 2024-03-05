@@ -1,10 +1,60 @@
 import Image from "next/image";
 import Link from "next/link";
 import Sidebar from "../../components/sidebar/index";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { db } from "../../components/firebase/firebaseConfig";
+import { collection, getDocs, addDoc } from "firebase/firestore";
 
-const Galeri = () => {
-  const [showOverlay, setShowOverlay] = useState(false); // State untuk menampilkan atau menyembunyikan overlay
+async function fetchDataFromFirestore() {
+  const querySnapshot = await getDocs(collection(db, "Jadwal"));
+  const data = [];
+  querySnapshot.forEach((doc) => {
+    data.push({ id: doc.id, ...doc.data() });
+  });
+  return data;
+}
+
+async function addDataToFirestore(name, kegiatan1, kegiatan2) {
+  try {
+    const docRef = await addDoc(collection(db, "Jadwal"), {
+      name: name,
+      kegiatan1: kegiatan1,
+      kegiatan2: kegiatan2,
+    });
+    console.log("Document written with ID: ", docRef.id);
+    return true;
+  } catch (error) {
+    console.error("Error adding document: ", error);
+    return false;
+  }
+}
+
+const Jadwal = () => {
+  const [name, setName] = useState("");
+  const [kegiatan1, setKegiatan1] = useState("");
+  const [kegiatan2, setKegiatan2] = useState("");
+  const [jadwalData, setJadwalData] = useState([]);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+
+  useEffect(() => {
+    async function fetchData() {
+      const data = await fetchDataFromFirestore();
+      setJadwalData(data.sort((a, b) => a.name.localeCompare(b.name))); // Sort data by name
+    }
+    fetchData();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const added = await addDataToFirestore(name, kegiatan1, kegiatan2);
+    if (added) {
+      setName("");
+      setKegiatan1("");
+      setKegiatan2("");
+      setShowAlert(true);
+    }
+  };
 
   const handleAddPostClick = () => {
     setShowOverlay(true); // Menampilkan overlay ketika tombol "Tambah" diklik
@@ -23,7 +73,7 @@ const Galeri = () => {
         </div>
         <div className="p-5 rounded-xl bg-[#524b4b] mt-5 mx-10 flex justify-center items-center flex-col">
           <p className="text-[#fff]">Total</p>
-          <p className="text-[#fff] text-5xl">00</p>
+          <p className="text-[#fff] text-5xl">{jadwalData.length.toString().padStart(2, "0")}</p>
         </div>
         {/* table */}
         <div className="mx-10 mt-10 rounded-2xl h-[28rem] bg-[#f5f1f1]">
@@ -44,7 +94,7 @@ const Galeri = () => {
             </div>
           </div>
           <div className="m-5">
-            <div className="overflow-x-auto rounded-xl">
+            <div className="rounded-2xl h-[22rem] bg-[#f5f1f1] overflow-x-auto">
               <table className="table-auto w-full border-collapse border border-gray-200">
                 <thead>
                   <tr className="bg-gray-200">
@@ -55,45 +105,23 @@ const Galeri = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td className="border px-2 py-2 font-bold text-center">1</td>
-                    <td className="border px-4 py-2">John Doe</td>
-                    <td className="border px-4 py-2">30</td>
-                    <td className="border py-2 flex justify-evenly items-center">
-                      <button className="rounded-xl h-7 w-auto bg-[#E3E4A9] items-center flex justify-center">
-                        <p className="m-5 text-[#edff47]">Edit</p>
-                      </button>
-                      <button className="rounded-xl h-7 w-auto bg-[#E4A9A9] items-center flex justify-center">
-                        <p className="m-5 text-[#EA4444]">Delete</p>
-                      </button>
-                    </td>
-                  </tr>
-                  <tr className="bg-[#e7e5e5]">
-                    <td className="border px-2 py-2 font-bold text-center">2</td>
-                    <td className="border px-4 py-2">Jane Doe</td>
-                    <td className="border px-4 py-2">25</td>
-                    <td className="border py-2 flex justify-evenly items-center">
-                      <button className="rounded-xl h-7 w-auto bg-[#E3E4A9] items-center flex justify-center">
-                        <p className="m-5 text-[#edff47]">Edit</p>
-                      </button>
-                      <button className="rounded-xl h-7 w-auto bg-[#E4A9A9] items-center flex justify-center">
-                        <p className="m-5 text-[#EA4444]">Delete</p>
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-2 font-bold text-center">3</td>
-                    <td className="border px-4 py-2">Alice</td>
-                    <td className="border px-4 py-2">35</td>
-                    <td className="border py-2 flex justify-evenly items-center">
-                      <button className="rounded-xl h-7 w-auto bg-[#E3E4A9] items-center flex justify-center">
-                        <p className="m-5 text-[#edff47]">Edit</p>
-                      </button>
-                      <button className="rounded-xl h-7 w-auto bg-[#E4A9A9] items-center flex justify-center">
-                        <p className="m-5 text-[#EA4444]">Delete</p>
-                      </button>
-                    </td>
-                  </tr>
+                  {jadwalData.map((jadwal, index) => (
+                    <tr key={jadwal.id} className={index % 2 === 0 ? "bg-transparent" : "bg-gray-200"}>
+                      <td className="border px-2 py-2 font-bold text-center">{index + 1}</td>
+                      <td className="border px-4 py-2">{jadwal.name}</td>
+                      <td className="border px-4 py-2">
+                        {jadwal.kegiatan1}, {jadwal.kegiatan2}
+                      </td>
+                      <td className="border py-2 flex justify-evenly items-center">
+                        <button className="rounded-xl h-7 w-auto bg-[#E3E4A9] items-center flex justify-center">
+                          <p className="m-5 text-[#ecff40]">Edit</p>
+                        </button>
+                        <button className="rounded-xl h-7 w-auto bg-[#E4A9A9] items-center flex justify-center">
+                          <p className="m-5 text-[#EA4444]">Delete</p>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -117,17 +145,24 @@ const Galeri = () => {
               </svg>
             </button>
             <p className="text-[#000] font-semibold text-3xl ms-10">Post Profil</p>
-            <form className="h-[17rem] w-full border border-[#a8a0a0] rounded-xl mt-3">
+            <form className="h-[19rem] w-full border border-[#a8a0a0] rounded-xl mt-3" onSubmit={handleSubmit}>
               <div className="mx-10 mt-5">
                 <label htmlFor="nama">Nama Eskul</label>
-                <input id="nama" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" />
+                <input id="nama" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
               <p className="text-center mt-4">Kegiatan Eskul</p>
               <div className="grid grid-cols-2 gap-4 mx-10">
                 <div>
                   <label htmlFor="kegiatan1">Kegiatan 1</label>
                   <div className="relative">
-                    <select name="cars" id="kegiatan1" className="appearance-none w-full bg-transparent border border-[#a8a0a0] py-3 pl-3 rounded-xl leading-tight focus:outline-none focus:bg-[#5f5a5a] focus:border-[#fff] text-[#d6d6d6]">
+                    <select
+                      name="cars"
+                      id="kegiatan1"
+                      className="appearance-none w-full bg-transparent border border-[#a8a0a0] py-3 pl-3 rounded-xl leading-tight focus:outline-none focus:bg-[#5f5a5a] focus:border-[#fff] text-[#d6d6d6]"
+                      value={kegiatan1}
+                      onChange={(e) => setKegiatan1(e.target.value)}
+                      required
+                    >
                       <option value="">Hari</option>
                       <option value="senin">Senin</option>
                       <option value="selasa">Selasa</option>
@@ -147,7 +182,14 @@ const Galeri = () => {
                 <div>
                   <label htmlFor="kegiatan2">Kegiatan 2</label>
                   <div className="relative">
-                    <select name="cars" id="kegiatan2" className="appearance-none w-full bg-transparent border border-[#a8a0a0] py-3 pl-3 rounded-xl leading-tight focus:outline-none focus:bg-[#5f5a5a] focus:border-[#fff] text-[#d6d6d6]">
+                    <select
+                      name="cars"
+                      id="kegiatan2"
+                      className="appearance-none w-full bg-transparent border border-[#a8a0a0] py-3 pl-3 rounded-xl leading-tight focus:outline-none focus:bg-[#5f5a5a] focus:border-[#fff] text-[#d6d6d6]"
+                      value={kegiatan2}
+                      onChange={(e) => setKegiatan2(e.target.value)}
+                      required
+                    >
                       <option value="">Hari</option>
                       <option value="Senin">Senin</option>
                       <option value="Selasa">Selasa</option>
@@ -165,8 +207,27 @@ const Galeri = () => {
                   </div>
                 </div>
               </div>
+              <div className="mx-10 justify-start flex">
+                <button className="h-10 w-[5rem] mt-8 rounded-xl bg-gray-500 text-[#fff]" type="submit">
+                  Post
+                </button>
+              </div>
             </form>
-            <button className="h-10 w-[5rem] mt-5 rounded-xl bg-gray-500 text-[#fff]">Post</button>
+          </div>
+        </div>
+      )}
+      {showAlert && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-[#dfd5d5] rounded-lg shadow-lg p-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-800">Success!</h2>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowAlert(false)}>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-gray-700 mt-2">Data berhasil ditambahkan!</p>
           </div>
         </div>
       )}
@@ -174,4 +235,4 @@ const Galeri = () => {
   );
 };
 
-export default Galeri;
+export default Jadwal;
