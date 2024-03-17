@@ -1,39 +1,53 @@
-"use client";
-import { get, ref } from "firebase/database";
-import { useEffect, useState } from "react";
-import { database } from "../components/firebase/firebaseConfig";
+import Image from "next/image";
+import Link from "next/link";
+import React, { useState, useEffect } from "react";
+import { db } from "../components/firebase/firebaseConfig";
+import { collection, getDocs, addDoc } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-const Coba = () => {
-  const [galeri, setGaleri] = useState([]);
+async function fetchDataFromFirestore() {
+  const querySnapshot = await getDocs(collection(db, "Galeri"));
+  const data = [];
+  querySnapshot.forEach((doc) => {
+    data.push({ id: doc.id, ...doc.data() });
+  });
+  return data;
+}
+
+const Galeri = () => {
+  const [galeriData, setGaleriData] = useState([]);
 
   useEffect(() => {
-    const galeriRef = ref(database, "Galeri");
-    get(galeriRefRe)
-      .then((snapshot) => {
-        if (snapshot.exests()) {
-          const galeriArray = Object.entries(snapshot.val()).map(([id, data]) => ({
-            id,
-            ...data,
-          }));
-          setGaleri(galeriArray);
-        } else {
-          console.log("No Data Avainable");
-        }
-      })
-      .catch((error) => {
-        console.error(error);
-      });
+    async function fetchData() {
+      const data = await fetchDataFromFirestore();
+      setGaleriData(data.sort((a, b) => a.name.localeCompare(b.name))); // Sort data by name
+    }
+    fetchData();
   }, []);
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    setImage(selectedFile);
+  };
+
   return (
-    <div className="flex h-screen items-center justify-center flex-col">
-      <h1 className="text-white">add data from firebase</h1>
-      <div className="grid grid-cols-2 gap4">
-        {galeri.map((galeri) => (
-          <diiv key={galeri.id} className></diiv>
+    <table className="table-auto w-full border-collapse border border-gray-200">
+      <thead>
+        <tr className="bg-gray-200">
+          <th className="px-4 py-2">Nama</th>
+          <th className="px-4 py-2">Image</th>
+        </tr>
+      </thead>
+      <tbody>
+        {galeriData.map((galeri) => (
+          <tr key={galeri.id}>
+            <td className="border px-4 py-2">{galeri.name}</td>
+            <td className="border px-4 py-2">{galeri.image && <img src={galeri.image} alt={galeri.name} style={{ width: "100px" }} />}</td>
+          </tr>
         ))}
-      </div>
-    </div>
+      </tbody>
+    </table>
   );
 };
 
-export default Coba;
+export default Galeri;

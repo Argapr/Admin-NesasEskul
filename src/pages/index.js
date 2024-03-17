@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import Sidebar from "../components/sidebar/index";
+import { db } from "../components/firebase/firebaseConfig"
 
 const Dashboard = () => {
   return (
@@ -37,7 +38,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-[#fff] text-2xl">00</p>
-                  <p className="text-[#929090] text-xl font-semibold">Galeri</p>
+                  <p className="data text-[#929090] text-xl font-semibold">Galeri</p>
                 </div>
                 <div></div>
               </div>
@@ -60,7 +61,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-[#fff] text-2xl">00</p>
-                  <p className="text-[#929090] text-sm font-semibold">Pengumuman</p>
+                  <p className="data text-[#929090] text-sm font-semibold">Pengumuman</p>
                 </div>
                 <div></div>
               </div>
@@ -81,7 +82,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-[#fff] text-2xl">00</p>
-                  <p className="text-[#929090] text-xl font-semibold">Profil</p>
+                  <p className="data text-[#929090] text-xl font-semibold">Profil</p>
                 </div>
                 <div></div>
               </div>
@@ -103,7 +104,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-[#fff] text-2xl">00</p>
-                  <p className="text-[#929090] text-xl font-semibold">Jadwal</p>
+                  <p className="data text-[#929090] text-xl font-semibold">Jadwal</p>
                 </div>
                 <div></div>
               </div>
