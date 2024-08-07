@@ -1,9 +1,28 @@
-import Image from "next/image";
-import Link from "next/link";
+"use client";
+import { useEffect, useState } from "react";
 import Sidebar from "../components/sidebar/index";
-import { db } from "../components/firebase/firebaseConfig"
+import { useUser } from "@/components/context/UserContext";
+import withAuth from "@/components/WithAuth/withAuth";
+import BarChart from "@/components/BarChart";
+import getDocumentCounts from "@/components/getDocumentCounts";
 
 const Dashboard = () => {
+  const { user } = useUser();
+  const [counts, setCounts] = useState({ galeri: 0, pengumuman: 0, profil: 0, jadwal: 0 });
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const data = await getDocumentCounts();
+        setCounts(data);
+      } catch (error) {
+        console.error("Failed to fetch document counts:", error);
+      }
+    };
+
+    fetchCounts();
+  }, []);
+
   return (
     <div className="flex h-screen">
       <Sidebar />
@@ -13,11 +32,11 @@ const Dashboard = () => {
           <div className="w-[6rem] h-1 rounded-lg bg-[#d8d4d4]"></div>
         </div>
         <div className="ms-10 mt-3">
-          <p className="text-[#fff] font-bold text-5xl">Hallo, Admin ✌</p>
+          <p className="text-[#fff] font-bold text-5xl">Hallo, {user?.displayName || "Loading..."} ✌</p>
         </div>
 
         <div className="mx-10 mt-5 flex">
-          <div className="w-[55rem] me-5">
+          <div className="me-5">
             <div class="grid grid-cols-4 gap-4 mt-5">
               <div className="p-5 h-[5rem] bg-[#f2efef14] rounded-xl flex justify-between items-center">
                 <div className="w-[4rem] h-[4rem] bg-[#e2dede18] rounded-full flex justify-center items-center flex-col">
@@ -37,7 +56,7 @@ const Dashboard = () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[#fff] text-2xl">00</p>
+                  <p className="text-[#fff] text-2xl">{counts.Galeri}</p>
                   <p className="data text-[#929090] text-xl font-semibold">Galeri</p>
                 </div>
                 <div></div>
@@ -59,8 +78,8 @@ const Dashboard = () => {
                     </g>
                   </svg>
                 </div>
-                <div>
-                  <p className="text-[#fff] text-2xl">00</p>
+                <div className="ms-5">
+                  <p className="text-[#fff] text-2xl">{counts.Pengumuman}</p>
                   <p className="data text-[#929090] text-sm font-semibold">Pengumuman</p>
                 </div>
                 <div></div>
@@ -81,7 +100,7 @@ const Dashboard = () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[#fff] text-2xl">00</p>
+                  <p className="text-[#fff] text-2xl">{counts.Profil}</p>
                   <p className="data text-[#929090] text-xl font-semibold">Profil</p>
                 </div>
                 <div></div>
@@ -103,19 +122,22 @@ const Dashboard = () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[#fff] text-2xl">00</p>
+                  <p className="text-[#fff] text-2xl">{counts.Jadwal}</p>
                   <p className="data text-[#929090] text-xl font-semibold">Jadwal</p>
                 </div>
                 <div></div>
               </div>
             </div>
-            <div className="mt-10 p-[11.5rem] bg-[#fff] rounded-xl flex justify-center items-center flex-col">Grafik</div>
-          </div>
-          <di className="w-[18rem] h-[32rem] mt-5 bg-[#fff] rounded-xl">
-            <div className="w-full h-[4rem] rounded-t-xl bg-[#524b4b] items-center flex">
-              <p className="text-[#fff] ms-5 text-xl">Kategori Data Fitur</p>
+            <div className="mt-10 bg-[#f2efef14] rounded-xl">
+              <BarChart />
             </div>
-            <div className="mx-5 mt-5 h-20 bg-[#E4A9A9] border-l-4 border-[#EA4444] rounded-xl flex items-center">
+          </div>
+
+          <di className="mt-5 bg-[#f2efef14] rounded-xl">
+            <div className="w-full h-[4rem] rounded-t-xl bg-[#524b4b] items-center flex">
+              <p className="text-[#fff] ms-5 text-xl">Kategori Fitur</p>
+            </div>
+            <div className="mx-5 px-5 mt-10 h-20 bg-[#e4a9a9ab] border-l-4 border-[#EA4444] rounded-xl flex items-center">
               <div className="w-12 h-12 rounded-full ms-5 bg-[#57525246] flex items-center justify-center flex-col">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8">
                   <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
@@ -132,9 +154,9 @@ const Dashboard = () => {
                   </g>
                 </svg>
               </div>
-              <p className="ms-2 text-xl font-semibold">Galeri</p>
+              <p className="ms-2 text-xl text-[#fff] font-semibold">Galeri</p>
             </div>
-            <div className="mx-5 mt-5 h-20 bg-[#E3E4A9] border-l-4 border-[#D9DD00] rounded-xl flex items-center">
+            <div className="mx-5 px-5 mt-5 h-20 bg-[#e3e4a9a1] border-l-4 border-[#D9DD00] rounded-xl flex items-center">
               <div className="w-12 h-12 rounded-full ms-5 bg-[#57525246] flex items-center justify-center flex-col">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8">
                   <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
@@ -151,9 +173,9 @@ const Dashboard = () => {
                   </g>
                 </svg>
               </div>
-              <p className="ms-2 text-xl font-semibold">Pengumuman</p>
+              <p className="ms-2 text-xl text-[#fff] font-semibold">Pengumuman</p>
             </div>
-            <div className="mx-5 mt-5 h-20 bg-[#A9E4B3] border-l-4 border-[#5AEE73] rounded-xl flex items-center">
+            <div className="mx-5 px-5 mt-5 h-20 bg-[#a9e4b3a8] border-l-4 border-[#5AEE73] rounded-xl flex items-center">
               <div className="w-12 h-12 rounded-full ms-5 bg-[#57525246] flex justify-center items-center flex-col">
                 <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="#000000" className="w-8">
                   <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
@@ -168,9 +190,9 @@ const Dashboard = () => {
                   </g>
                 </svg>
               </div>
-              <p className="ms-2 text-xl font-semibold">Profil</p>
+              <p className="ms-2 text-xl text-[#fff] font-semibold">Profil</p>
             </div>
-            <div className="mx-5 mt-5 h-20 bg-[#A9C5E4] border-l-4 border-[#4E98EA] rounded-xl flex items-center">
+            <div className="mx-5 px-5 mt-5 h-20 bg-[#a9c3e49f] border-l-4 border-[#4E98EA] rounded-xl flex items-center">
               <div className="w-12 h-12 rounded-full ms-5 bg-[#57525246] flex justify-center items-center flex-col">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8">
                   <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
@@ -186,7 +208,7 @@ const Dashboard = () => {
                   </g>
                 </svg>
               </div>
-              <p className="ms-2 text-xl font-semibold">Jadwal</p>
+              <p className="ms-2 text-xl text-[#fff] font-semibold">Jadwal</p>
             </div>
           </di>
         </div>
@@ -195,4 +217,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default withAuth(Dashboard);

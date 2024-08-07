@@ -1,7 +1,8 @@
+"use client";
 import Sidebar from "@/components/sidebar/index";
 import React, { useState, useEffect } from "react";
 import { db } from "../../components/firebase/firebaseConfig";
-import { collection, getDocs, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 async function fetchDataFromFirestore() {
@@ -35,6 +36,23 @@ async function deleteDataFromFirestore(id) {
   }
 }
 
+async function updateDataInFirestore(id, name, imageUrl, pembimbing, jumlah, deskripsi) {
+  try {
+    const docRef = doc(db, "Profil", id);
+    await updateDoc(docRef, {
+      name: name,
+      image: imageUrl,
+      pembimbing: pembimbing,
+      jumlah: jumlah,
+      deskripsi: deskripsi,
+    });
+    console.log("Document successfully updated!");
+  } catch (error) {
+    console.error("Error updating document: ", error);
+    throw error;
+  }
+}
+
 const Profil = () => {
   const [name, setName] = useState("");
   const [image, setImage] = useState(null);
@@ -46,6 +64,7 @@ const Profil = () => {
   const [showOverlay, setShowOverlay] = useState(false);
   const [showAlert, setShowAlert] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -62,32 +81,39 @@ const Profil = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    let finalImageUrl = imageUrl; // Gunakan imageUrl lama jika gambar tidak diubah
+
     if (image) {
       const storage = getStorage();
       const storageRef = ref(storage, `images/profil/${image.name}`);
       await uploadBytes(storageRef, image);
-      const imageUrl = await getDownloadURL(storageRef);
-      const docId = await addDataToFirestore(name, imageUrl, pembimbing, jumlah, deskripsi);
-      if (docId) {
-        setName("");
-        setImage("null");
-        setImageUrl("");
-        setPembimbing("");
-        setJumlah("");
-        setDeskripsi("");
-        setShowAlert("Data berhasil ditambahkan!");
-      }
-    } else {
-      console.log("No image selected");
+      finalImageUrl = await getDownloadURL(storageRef);
     }
+
+    if (editingId) {
+      await updateDataInFirestore(editingId, name, finalImageUrl, pembimbing, jumlah, deskripsi);
+      setEditingId(null);
+    } else {
+      await addDataToFirestore(name, finalImageUrl, pembimbing, jumlah, deskripsi);
+    }
+
+    setName("");
+    setImage(null);
+    setImageUrl("");
+    setPembimbing("");
+    setJumlah("");
+    setDeskripsi("");
+    setShowAlert(editingId ? "Data berhasil diperbarui!" : "Data berhasil ditambahkan!");
   };
 
   const handleAddPostClick = () => {
-    setShowOverlay(true); // Menampilkan overlay ketika tombol "Tambah" diklik
+    setEditingId(null);
+    setShowOverlay(true);
   };
 
   const handleCloseOverlay = () => {
-    setShowOverlay(false); // Menyembunyikan overlay ketika tombol close di dalam overlay diklik
+    setShowOverlay(false);
+    setEditingId(null);
   };
 
   const handleDelete = async (id) => {
@@ -103,11 +129,25 @@ const Profil = () => {
     }
   };
 
+  const fetchDataForEdit = (id) => {
+    const profil = profilData.find((item) => item.id === id);
+    if (profil) {
+      setName(profil.name);
+      setImageUrl(profil.image);
+      setPembimbing(profil.pembimbing);
+      setJumlah(profil.jumlah);
+      setDeskripsi(profil.deskripsi);
+      setEditingId(id);
+      setShowOverlay(true);
+    }
+  };
+
   const filteredData = profilData.filter((profil) => profil.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
   };
+
   return (
     <div className="flex h-screen">
       <Sidebar />
@@ -128,8 +168,7 @@ const Profil = () => {
                 <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
                 <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
                 <g id="SVGRepo_iconCarrier">
-                  {" "}
-                  <path d="M4 12H20M12 4V20" stroke="#d8d4d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>{" "}
+                  <path d="M4 12H20M12 4V20" stroke="#d8d4d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                 </g>
               </svg>
               <p className="ms-1">Post</p>
@@ -157,13 +196,13 @@ const Profil = () => {
                     <tr key={profil.id} className={index % 2 === 0 ? "bg-transparent" : "bg-gray-200"}>
                       <td className="border px-2 py-2 font-bold text-center">{index + 1}</td>
                       <td className="border px-4 py-2">{profil.name}</td>
-                      <td className="border px-4 py-2">{profil.image && <img src={profil.image} alt={profil.name} style={{ width: "100px" }} />}</td>
+                      <td className="border px-4 py-2">{profil.image && <img src={profil.image} alt={profil.name} className="w-16 h-16 object-cover" />}</td>
                       <td className="border px-4 py-2">{profil.pembimbing}</td>
                       <td className="border px-4 py-2">{profil.jumlah}</td>
                       <td className="border px-4 py-2">{profil.deskripsi}</td>
                       <td className="border py-2">
                         <div className="flex items-center justify-evenly">
-                          <button className="rounded-xl h-10 w-10  bg-[#dddf88] items-center flex justify-center flex-col">
+                          <button className="rounded-xl h-10 w-10  bg-[#dddf88] items-center flex justify-center flex-col" onClick={() => fetchDataForEdit(profil.id)}>
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5">
                               <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
                               <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
@@ -207,64 +246,66 @@ const Profil = () => {
             </div>
           </div>
         </div>
-      </div>
-      {showOverlay && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-          <div className="bg-white p-8 rounded-lg w-[70rem] h-[35rem]">
-            {/* tombol untuk menutup overflay */}
-            <button type="button" className="rounded-full h-10 w-10 bg-[#f1eeee] items-center flex justify-center" onClick={handleCloseOverlay}>
-              <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="#000000" className="w-5">
-                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
-                <g id="SVGRepo_iconCarrier">
-                  <path
-                    fill="#000000"
-                    d="M195.2 195.2a64 64 0 0 1 90.496 0L512 421.504 738.304 195.2a64 64 0 0 1 90.496 90.496L602.496 512 828.8 738.304a64 64 0 0 1-90.496 90.496L512 602.496 285.696 828.8a64 64 0 0 1-90.496-90.496L421.504 512 195.2 285.696a64 64 0 0 1 0-90.496z"
-                  ></path>
-                </g>
-              </svg>
-            </button>
-            <p className="text-[#000] font-semibold text-3xl ms-10">Post Profil</p>
-            <form className="h-[25rem] w-full border border-[#a8a0a0] rounded-xl mt-3" onSubmit={handleSubmit}>
-              <div className="grid grid-cols-2 gap-4 mx-10 mt-5">
-                <div>
-                  <label htmlFor="nama">Nama Eskul</label>
-                  <input id="nama" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" value={name} onChange={(e) => setName(e.target.value)} required />
+        {showOverlay && (
+          <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
+            <div className="bg-white p-8 rounded-lg w-[70rem]">
+              <button type="button" className="rounded-full h-10 w-10 bg-[#f1eeee] items-center flex justify-center" onClick={handleCloseOverlay}>
+                <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="#000000" className="w-5">
+                  <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                  <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+                  <g id="SVGRepo_iconCarrier">
+                    <path
+                      fill="#000000"
+                      d="M195.2 195.2a64 64 0 0 1 90.496 0L512 421.504 738.304 195.2a64 64 0 0 1 90.496 90.496L602.496 512 828.8 738.304a64 64 0 0 1-90.496 90.496L512 602.496 285.696 828.8a64 64 0 0 1-90.496-90.496L421.504 512 195.2 285.696a64 64 0 0 1 0-90.496z"
+                    ></path>
+                  </g>
+                </svg>
+              </button>
+              <p className="text-[#000] font-semibold text-3xl ms-10">{editingId ? "Edit Profil" : "Post Profil"}</p>
+              <form className="w-full border border-[#a8a0a0] rounded-xl mt-3" onSubmit={handleSubmit}>
+                <div className="grid grid-cols-2 gap-4 mx-10 mt-5">
+                  <div>
+                    <label htmlFor="nama">Nama Eskul</label>
+                    <input id="nama" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" value={name} onChange={(e) => setName(e.target.value)} required />
+                  </div>
+                  <div>
+                    <label htmlFor="nama-pembimbing">Nama Pembimbing</label>
+                    <input id="nama-pembimbing" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" value={pembimbing} onChange={(e) => setPembimbing(e.target.value)} required />
+                  </div>
                 </div>
-                <div>
-                  <label htmlFor="nama-pembimbing">Nama Pembimbing</label>
-                  <input id="nama-pembimbing" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" value={pembimbing} onChange={(e) => setPembimbing(e.target.value)} required />
+
+                <div className="grid grid-cols-2 gap-4 mx-10 mt-5">
+                  <div>
+                    <label htmlFor="img">Image Eskul</label>
+                    <input
+                      type="file"
+                      id="img"
+                      accept="image/*"
+                      className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4 py-2 flex items-center justify-center bg-white text-[#333] cursor-pointer"
+                      onChange={handleFileChange}
+                    />
+                    {imageUrl && <img src={imageUrl} alt="Preview" className="w-32 h-32 object-cover mt-2" />}
+                  </div>
+                  <div>
+                    <label htmlFor="anggota">Jumlah Anggota</label>
+                    <input type="number" name="jmlAnggota" min={1} max={150} className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" value={jumlah} onChange={(e) => setJumlah(e.target.value)} required />
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 mx-10 mt-5">
-                <div>
-                  <label htmlFor="img">Image Eskul</label>
-                  <input
-                    type="file"
-                    id="img"
-                    className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4 py-2 flex items-center justify-center bg-white text-[#333] cursor-pointer"
-                    onChange={handleFileChange}
-                    required
-                  />
+                <div className="mx-10 mt-5">
+                  <label htmlFor="deskripsi">Deskripsi Eskul</label>
+                  <textarea id="deskripsi" className="h-[6rem] rounded-lg border border-[#a8a0a0] w-full focus:outline-none px-4" value={deskripsi} onChange={(e) => setDeskripsi(e.target.value)} required></textarea>
                 </div>
-                <div>
-                  <label htmlFor="anggota">Jumlah Anggota</label>
-                  <input type="number" name="jmlAnggota" min={1} max={150} className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" value={jumlah} onChange={(e) => setJumlah(e.target.value)} required />
+
+                <div className="mx-10 justify-start flex mb-4">
+                  <button className="h-10 w-[5rem] mt-4 rounded-xl bg-gray-500 text-[#fff]" type="submit">
+                    {editingId ? "Update" : "Post"}
+                  </button>
                 </div>
-              </div>
-              <div className="mx-10 mt-5">
-                <label htmlFor="deskripsi">Deskripsi Eskul</label>
-                <textarea id="deskripsi" className="h-[6rem] rounded-lg border border-[#a8a0a0] w-full focus:outline-none px-4" value={deskripsi} onChange={(e) => setDeskripsi(e.target.value)} required></textarea>
-              </div>
-              <div className="mx-10 justify-start flex">
-                <button className="h-10 w-[5rem] mt-4 rounded-xl bg-gray-500 text-[#fff]" type="submit">
-                  Post
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
       {showAlert && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="bg-[#dfd5d5] rounded-lg shadow-lg p-8">

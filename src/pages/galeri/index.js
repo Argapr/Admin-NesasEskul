@@ -1,24 +1,9 @@
-import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
-import Sidebar from "@/components/sidebar";
+"use client";
+import Sidebar from "../../components/sidebar/index";
+import React, { useState, useEffect } from "react";
 import { db } from "../../components/firebase/firebaseConfig";
-import { collection, getDocs, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-
-async function fetchDataFromFirestore() {
-  const querySnapshot = await getDocs(collection(db, "Galeri"));
-  return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-}
-
-async function addDataToFirestore(name, imageUrl, category) {
-  try {
-    const docRef = await addDoc(collection(db, "Galeri"), { name, image: imageUrl, category });
-    return docRef.id;
-  } catch (error) {
-    console.error("Error adding document: ", error);
-    return null;
-  }
-}
 
 async function deleteDataFromFirestore(id) {
   try {
@@ -30,16 +15,50 @@ async function deleteDataFromFirestore(id) {
   }
 }
 
+async function fetchDataFromFirestore() {
+  const querySnapshot = await getDocs(collection(db, "Galeri"));
+  return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
+async function addDataToFirestore(name, imageUrl, category) {
+  try {
+    const docRef = await addDoc(collection(db, "Galeri"), {
+      name: name,
+      image: imageUrl,
+      category: category,
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error("Error adding document: ", error);
+    return null;
+  }
+}
+
+async function updateDataInFirestore(id, name, imageUrl, category) {
+  try {
+    await updateDoc(doc(db, "Galeri", id), {
+      name: name || "", // Ganti undefined dengan string kosong
+      image: imageUrl || "", // Ganti undefined dengan string kosong
+      category: category || "" // Ganti undefined dengan string kosong
+    });
+    console.log("Document successfully updated!");
+  } catch (error) {
+    console.error("Error updating document: ", error);
+    throw error;
+  }
+}
+
+
 const Galeri = () => {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [image, setImage] = useState(null);
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState(null);
   const [category, setCategory] = useState("");
   const [galeriData, setGaleriData] = useState([]);
   const [showOverlay, setShowOverlay] = useState(false);
-  const [showAlert, setShowAlert] = useState("");
+  const [showAlert, setShowAlert] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingId, setEditingId] = useState(null); // State untuk menyimpan ID data yang sedang diedit
 
   useEffect(() => {
     async function fetchData() {
@@ -56,31 +75,57 @@ const Galeri = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+  
+    let url = imageUrl;
     if (image) {
       const storage = getStorage();
       const storageRef = ref(storage, `images/galeri/${image.name}`);
       await uploadBytes(storageRef, image);
-      const imageUrl = await getDownloadURL(storageRef);
-      const docId = await addDataToFirestore(name, imageUrl, category);
-      if (docId) {
-        setName("");
-        setImage(null);
-        setImageUrl("");
-        setCategory("");
+      url = await getDownloadURL(storageRef);
+    }
+  
+    if (editingId) {
+      // Ganti undefined dengan string kosong
+      await updateDataInFirestore(editingId, name || "", url || "", category || "");
+      setEditingId(null);
+    } else {
+      const added = await addDataToFirestore(name || "", url || "", category || "");
+      if (added) {
         setShowAlert("Data berhasil ditambahkan!");
       }
-    } else {
-      console.error("No image selected");
     }
+  
+    setName("");
+    setImage(null);
+    setImageUrl(null);
+    setCategory("");
+    setShowOverlay(false);
+    const updatedData = await fetchDataFromFirestore();
+    setGaleriData(updatedData.sort((a, b) => a.name.localeCompare(b.name)));
   };
+  
 
   const handleAddPostClick = () => {
     setShowOverlay(true);
+    setEditingId(null); // Reset editing state
+    setName("");
+    setImage(null);
+    setImageUrl("");
+    setCategory("");
   };
 
   const handleCloseOverlay = () => {
     setShowOverlay(false);
   };
+
+  const handleEdit = (galeri) => {
+    setEditingId(galeri.id);
+    setName(galeri.name || "");
+    setImageUrl(galeri.image || "");
+    setCategory(galeri.category || "");
+    setShowOverlay(true);
+  };
+  
 
   const handleDelete = async (id) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus data ini?")) {
@@ -107,7 +152,7 @@ const Galeri = () => {
       <div className="flex-grow bg-[#2F2D2D] m-5 rounded-xl">
         <div className="p-8">
           <p className="font-semibold text-3xl text-[#d8d4d4]">Galeri</p>
-          <div className="w-12 h-1 rounded-lg bg-[#d8d4d4]"></div>
+          <div className="w-[6rem] mt-1 h-1 rounded-lg bg-[#d8d4d4]"></div>
         </div>
         <div className="p-5 rounded-xl bg-[#524b4b] mt-5 mx-10 flex justify-center items-center flex-col">
           <p className="text-[#fff]">Total</p>
@@ -120,7 +165,8 @@ const Galeri = () => {
                 <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
                 <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
                 <g id="SVGRepo_iconCarrier">
-                  <path d="M4 12H20M12 4V20" stroke="#d8d4d4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                  {" "}
+                  <path d="M4 12H20M12 4V20" stroke="#d8d4d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>{" "}
                 </g>
               </svg>
               <p className="ms-1">Post</p>
@@ -135,9 +181,9 @@ const Galeri = () => {
                 <thead>
                   <tr className="bg-gray-200">
                     <th className="px-2 py-2">No</th>
-                    <th className="px-4 py-2">Nama</th>
+                    <th className="px-4 py-2">Nama Eskul</th>
                     <th className="px-4 py-2">Image</th>
-                    <th className="px-4 py-2">Category</th>
+                    <th className="px-4 py-2">Kategori</th>
                     <th className="px-4 py-2">Aksi</th>
                   </tr>
                 </thead>
@@ -150,7 +196,7 @@ const Galeri = () => {
                       <td className="border px-4 py-2">{galeri.category}</td>
                       <td className="border py-2">
                         <div className="flex items-center justify-evenly">
-                          <button className="rounded-xl h-10 w-10  bg-[#dddf88] items-center flex justify-center flex-col">
+                          <button onClick={() => handleEdit(galeri)} className="rounded-xl h-10 w-10  bg-[#dddf88] items-center flex justify-center flex-col">
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5">
                               <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
                               <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
@@ -195,32 +241,33 @@ const Galeri = () => {
           </div>
         </div>
       </div>
+
       {showOverlay && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-          <div className="bg-white p-8 rounded-lg w-[68rem] h-[29rem]">
+          <div className="bg-white p-8 rounded-lg">
             <button type="button" className="rounded-full h-10 w-10 bg-[#f1eeee] items-center flex justify-center" onClick={handleCloseOverlay}>
               <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="#000000" className="w-5">
-                <path fill="#000000" d="M195.2 195.2a64 64 0 0 1 90.496 0L512 421.504 738.304 195.2a64 64 0 0 1 90.496 90.496L602.496 512 828.8 738.304a64 64 0 0 1-90.496 90.496L512 602.496 285.696 828.8a64 64 0 0 1-90.496-90.496L421.504 512 195.2 285.696a64 64 0 0 1 0-90.496z"></path>
+                <path
+                  fill="#000000"
+                  d="M195.2 195.2a64 64 0 0 1 90.496 0L512 421.504 738.304 195.2a64 64 0 0 1 90.496 90.496L602.496 512 828.8 738.304a64 64 0 0 1-90.496 90.496L512 602.496 285.696 828.8a64 64 0 0 1-90.496-90.496L421.504 512 195.2 285.696a64 64 0 0 1 0-90.496z"
+                ></path>
               </svg>
             </button>
-            <p className="text-[#000] font-semibold text-3xl ms-10">Post Galeri</p>
-            <form className="h-[19rem] w-full border border-[#a8a0a0] rounded-xl mt-3" onSubmit={handleSubmit}>
-              <div className="ms-10 mt-5">
-                <label htmlFor="nama">Nama Eskul</label>
-                <br />
+
+            <p className="text-[#000] font-semibold text-3xl ms-10">{editingId ? "Edit Galeri" : "Post Galeri"}</p>
+            <form className=" w-full border border-[#a8a0a0] rounded-xl mt-3" onSubmit={handleSubmit}>
+              <div className="mx-10 mt-5">
+                <label htmlFor="nama">Nama Eskul</label><br />
                 <input id="nama" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-[59rem] focus:outline-none px-4" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
+
               <div className="grid grid-cols-2 gap-4 mx-10 mt-10">
                 <div>
                   <label htmlFor="img">Image Eskul</label>
-                  <input
-                    type="file"
-                    id="img"
-                    className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4 py-2 flex items-center justify-center bg-white text-[#333] cursor-pointer"
-                    onChange={handleFileChange}
-                    required
-                  />
+                  <input type="file" id="img" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4 py-2 flex items-center justify-center bg-white text-[#333] cursor-pointer" onChange={handleFileChange} />
+                  {imageUrl && !image && <img src={imageUrl} alt="Current" className="mt-2 h-20 w-20 object-cover" />}
                 </div>
+
                 <div>
                   <label htmlFor="cars">Category</label>
                   <div className="relative">
@@ -235,7 +282,7 @@ const Galeri = () => {
                       <option value="">Kategori</option>
                       <option value="keagamaan">Keagamaan</option>
                       <option value="teknologi">Teknologi</option>
-                      <option value="Kesenian">Kesenian</option>
+                      <option value="kesenian">Kesenian</option>
                       <option value="organisasi">Organisasi</option>
                       <option value="pkk">PKK</option>
                       <option value="olahraga">Olahraga</option>
@@ -250,15 +297,17 @@ const Galeri = () => {
                   </div>
                 </div>
               </div>
-              <div className="mx-10 justify-start flex">
+
+              <div className="mx-10 justify-start flex mb-5">
                 <button className="h-10 w-[5rem] mt-8 rounded-xl bg-gray-500 text-[#fff]" type="submit">
-                  Post
+                  {editingId ? "Update" : "Post"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
       {showAlert && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="bg-[#dfd5d5] rounded-lg shadow-lg p-8">

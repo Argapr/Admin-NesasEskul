@@ -1,5 +1,12 @@
-import "@/styles/globals.css";
+import '@/styles/globals.css'
+import { UserProvider } from '@/components/context/UserContext';
 
-export default function App({ Component, pageProps }) {
-  return <Component {...pageProps} />;
+function MyApp({ Component, pageProps }) {
+  return (
+    <UserProvider>
+      <Component {...pageProps} />
+    </UserProvider>
+  );
 }
+
+export default MyApp;

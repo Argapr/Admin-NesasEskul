@@ -1,9 +1,8 @@
-import Image from "next/image";
-import Link from "next/link";
+"use client";
 import Sidebar from "../../components/sidebar/index";
 import React, { useState, useEffect } from "react";
 import { db } from "../../components/firebase/firebaseConfig";
-import { collection, getDocs, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 async function deleteDataFromFirestore(id) {
@@ -21,11 +20,12 @@ async function fetchDataFromFirestore() {
   return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
 
-async function addDataToFirestore(name, imageUrl, pengumuman) {
+async function addDataToFirestore(name, imageUrl, kategori, pengumuman) {
   try {
     const docRef = await addDoc(collection(db, "Pengumuman"), {
       name: name,
       image: imageUrl,
+      kategori: kategori,
       pengumuman: pengumuman,
     });
     return docRef.id;
@@ -35,20 +35,37 @@ async function addDataToFirestore(name, imageUrl, pengumuman) {
   }
 }
 
+async function updateDataInFirestore(id, name, imageUrl, kategori, pengumuman) {
+  try {
+    await updateDoc(doc(db, "Pengumuman", id), {
+      name: name,
+      image: imageUrl,
+      kategori: kategori,
+      pengumuman: pengumuman,
+    });
+    console.log("Document successfully updated!");
+  } catch (error) {
+    console.error("Error updating document: ", error);
+    throw error;
+  }
+}
+
 const Pengumuman = () => {
   const [name, setName] = useState("");
-  const [image, setImage] = useState("null");
-  const [imageUrl, setImageUrl] = useState("");
+  const [image, setImage] = useState(null);
+  const [imageUrl, setImageUrl] = useState(null);
+  const [kategori, setKategory] = useState("");
   const [pengumuman, setPengumuman] = useState("");
   const [pengumumanData, setPengumumanData] = useState([]);
   const [showOverlay, setShowOverlay] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingId, setEditingId] = useState(null); // State untuk menyimpan ID data yang sedang diedit
 
   useEffect(() => {
     async function fetchData() {
       const data = await fetchDataFromFirestore();
-      setPengumumanData(data.sort((a, b) => a.name.localeCompare(b.name))); // Sort data by name
+      setPengumumanData(data.sort((a, b) => a.name.localeCompare(b.name)));
     }
     fetchData();
   }, []);
@@ -60,31 +77,56 @@ const Pengumuman = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    let url = imageUrl;
     if (image) {
       const storage = getStorage();
       const storageRef = ref(storage, `images/pengumuman/${image.name}`);
       await uploadBytes(storageRef, image);
-      const imageUrl = await getDownloadURL(storageRef);
-      const added = await addDataToFirestore(name, imageUrl, pengumuman);
+      url = await getDownloadURL(storageRef);
+    }
+
+    if (editingId) {
+      await updateDataInFirestore(editingId, name, url, kategori, pengumuman);
+      setEditingId(null);
+    } else {
+      const added = await addDataToFirestore(name, url, kategori, pengumuman);
       if (added) {
-        setName("");
-        setImage(null);
-        setImageUrl("");
-        setPengumuman("");
         setShowAlert("Data berhasil ditambahkan!");
       }
-    } else {
-      // Handle case where no image is selected
-      console.error("No image selected");
     }
+
+    setName("");
+    setImage(null);
+    setImageUrl(null); // Ubah ke null
+    setKategory("");
+    setPengumuman("");
+    setShowOverlay(false);
+    const updatedData = await fetchDataFromFirestore();
+    setPengumumanData(updatedData.sort((a, b) => a.name.localeCompare(b.name)));
   };
 
   const handleAddPostClick = () => {
-    setShowOverlay(true); // Menampilkan overlay ketika tombol "Tambah" diklik
+    setShowOverlay(true);
+    setEditingId(null); // Reset editing state
+    setName("");
+    setImage(null);
+    setImageUrl("");
+    setKategory("");
+    setPengumuman("");
   };
 
   const handleCloseOverlay = () => {
-    setShowOverlay(false); // Menyembunyikan overlay ketika tombol close di dalam overlay diklik
+    setShowOverlay(false);
+  };
+
+  const handleEdit = (pengumuman) => {
+    setEditingId(pengumuman.id);
+    setName(pengumuman.name);
+    setImageUrl(pengumuman.image);
+    setKategory(pengumuman.kategori);
+    setPengumuman(pengumuman.pengumuman);
+    setShowOverlay(true);
   };
 
   const handleDelete = async (id) => {
@@ -100,12 +142,12 @@ const Pengumuman = () => {
     }
   };
 
-  // Filter profilData based on searchQuery
   const filteredData = pengumumanData.filter((pengumuman) => pengumuman.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
   };
+
   return (
     <div className="flex h-screen">
       <Sidebar />
@@ -118,7 +160,6 @@ const Pengumuman = () => {
           <p className="text-[#fff]">Total</p>
           <p className="text-[#fff] text-5xl">{pengumumanData.length.toString().padStart(2, "0")}</p>
         </div>
-        {/* table */}
         <div className="mx-10 mt-10 rounded-2xl h-[28rem] bg-[#f5f1f1]">
           <div className="h-[3rem] bg-[#524b4b] rounded-t-2xl flex justify-between items-center">
             <button className="ms-5 bg-[#e4d0d0] bg-opacity-20 w-[6rem] h-[2rem] rounded-lg text-[#d8d4d4] flex items-center justify-center" onClick={handleAddPostClick}>
@@ -144,20 +185,24 @@ const Pengumuman = () => {
                     <th className="px-2 py-2">No</th>
                     <th className="px-4 py-2">Nama Eskul</th>
                     <th className="px-4 py-2">Image</th>
-                    <th className="px-4 py-2">Pengumuman</th>
+                    <th className="px-4 py-2">Kategori</th>
+                    <th className="px-4 py-2 w-[25rem]">Pengumuman</th>
                     <th className="px-4 py-2">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredData.map((pengumuman, index) => (
-                    <tr key={pengumuman.id} className={index % 2 === 0 ? "bg-transparent" : "bg-gray-200"}>
-                      <td className="border px-2 py-2 font-bold text-center">{index + 1}</td>
+                    <tr key={pengumuman.id} className={index % 2 === 0 ? "bg-gray-100" : "bg-white"}>
+                      <td className="border px-4 py-2 text-center">{index + 1}</td>
                       <td className="border px-4 py-2">{pengumuman.name}</td>
-                      <td className="border px-4 py-2">{pengumuman.image && <img src={pengumuman.image} alt={pengumuman.name} style={{ width: "100px" }} />}</td>
+                      <td className="border px-4 py-2">
+                        <img src={pengumuman.image} alt={pengumuman.name} className="w-16 h-16 object-cover" />
+                      </td>
+                      <td className="border px-4 py-2">{pengumuman.kategori}</td>
                       <td className="border px-4 py-2">{pengumuman.pengumuman}</td>
                       <td className="border py-2">
                         <div className="flex items-center justify-evenly">
-                          <button className="rounded-xl h-10 w-10  bg-[#dddf88] items-center flex justify-center flex-col">
+                          <button onClick={() => handleEdit(pengumuman)} className="rounded-xl h-10 w-10  bg-[#dddf88] items-center flex justify-center flex-col">
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5">
                               <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
                               <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
@@ -179,7 +224,7 @@ const Pengumuman = () => {
                               </g>
                             </svg>
                           </button>
-                          <button className="rounded-xl h-10 w-10 bg-[#e29090] items-center flex justify-center flex-col" onClick={() => handleDelete(pengumuman.id)}>
+                          <button onClick={() => handleDelete(pengumuman.id)} className="rounded-xl h-10 w-10 bg-[#e29090] items-center flex justify-center flex-col">
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5">
                               <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
                               <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
@@ -202,9 +247,10 @@ const Pengumuman = () => {
           </div>
         </div>
       </div>
+
       {showOverlay && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-          <div className="bg-white p-8 rounded-lg w-[60rem] h-[30rem]">
+          <div className="bg-white p-8 rounded-lg w-[60rem]">
             {/* tombol untuk menutup overflay */}
             <button type="button" className="rounded-full h-10 w-10 bg-[#f1eeee] items-center flex justify-center" onClick={handleCloseOverlay}>
               <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="#000000" className="w-5">
@@ -218,8 +264,8 @@ const Pengumuman = () => {
                 </g>
               </svg>
             </button>
-            <p className="text-[#000] font-semibold text-3xl ms-10">Post Profil</p>
-            <form className="h-[19rem] w-full border border-[#a8a0a0] rounded-xl mt-3" onSubmit={handleSubmit}>
+            <p className="text-[#000] font-semibold text-3xl ms-10">{editingId ? "Edit Pengumuman" : "Tambah Pengumuman"}</p>
+            <form className=" w-full border border-[#a8a0a0] rounded-xl mt-3" onSubmit={handleSubmit}>
               <div className="grid grid-cols-2 gap-4 mx-10 mt-5">
                 <div>
                   <label htmlFor="nama">Nama Eskul</label>
@@ -227,20 +273,45 @@ const Pengumuman = () => {
                 </div>
                 <div>
                   <label htmlFor="img">Image Eskul</label>
-                  <input
-                    type="file"
-                    id="img"
-                    className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4 py-2 flex items-center justify-center bg-white text-[#333] cursor-pointer"
-                    onChange={handleFileChange}
-                    required
-                  />
+                  <input type="file" id="img" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4 py-2 flex items-center justify-center bg-white text-[#333] cursor-pointer" onChange={handleFileChange} />
+                  {imageUrl && !image && <img src={imageUrl} alt="Current" className="mt-2 h-20 w-20 object-cover" />}
                 </div>
               </div>
-              <div className="mx-10 mt-5">
-                <label htmlFor="deskripsi">Deskripsi Pengumuman</label>
-                <textarea id="deskripsi" className="h-[6rem] rounded-lg border border-[#a8a0a0] w-full focus:outline-none px-4" value={pengumuman} onChange={(e) => setPengumuman(e.target.value)} required></textarea>
+              <div className="grid grid-cols-2 gap-4 mx-10 mt-5">
+                <div>
+                  <label htmlFor="cars">Category</label>
+                  <div className="relative">
+                    <select
+                      name="cars"
+                      id="cars"
+                      className="appearance-none w-full bg-transparent border border-[#a8a0a0] py-3 pl-3 rounded-xl leading-tight focus:outline-none focus:bg-[#5f5a5a] focus:border-[#fff] text-[#d6d6d6]"
+                      value={kategori}
+                      onChange={(e) => setKategory(e.target.value)}
+                      required
+                    >
+                      <option value="">Kategori</option>
+                      <option value="keagamaan">Keagamaan</option>
+                      <option value="teknologi">Teknologi</option>
+                      <option value="kesenian">Kesenian</option>
+                      <option value="organisasi">Organisasi</option>
+                      <option value="pkk">PKK</option>
+                      <option value="olahraga">Olahraga</option>
+                      <option value="bahasa">Bahasa</option>
+                      <option value="bela-diri">Bela Diri</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-center px-02 h-2.5rem] w-12 bg-gray-500 rounded-r-xl text-[#fff]">
+                      <svg className="fill-current h-7 w-7" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="deskripsi">Deskripsi Pengumuman</label>
+                  <textarea id="deskripsi" className="h-[6rem] rounded-lg border border-[#a8a0a0] w-full focus:outline-none px-4" value={pengumuman} onChange={(e) => setPengumuman(e.target.value)} required></textarea>
+                </div>
               </div>
-              <div className="mx-10 justify-start flex">
+              <div className="mx-10 justify-start flex mb-6">
                 <button className="h-10 w-[5rem] mt-3 rounded-xl bg-gray-500 text-[#fff]" type="submit">
                   Post
                 </button>
@@ -254,7 +325,7 @@ const Pengumuman = () => {
           <div className="bg-[#dfd5d5] rounded-lg shadow-lg p-8">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-800">Success!</h2>
-              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowAlert(false)}>
+              <button className="text-gray-503 hover:text-gray-700" onClick={() => setShowAlert(false)}>
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>

@@ -1,9 +1,7 @@
-import Image from "next/image";
-import Link from "next/link";
 import Sidebar from "../../components/sidebar/index";
 import React, { useState, useEffect } from "react";
 import { db } from "../../components/firebase/firebaseConfig";
-import { collection, getDocs, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 
 async function fetchDataFromFirestore() {
   const querySnapshot = await getDocs(collection(db, "Jadwal"));
@@ -21,6 +19,21 @@ async function addDataToFirestore(name, kegiatan1, kegiatan2) {
   } catch (error) {
     console.error("Error adding document: ", error);
     return null;
+  }
+}
+
+async function updateDataInFirestore(id, name, kegiatan1, kegiatan2) {
+  try {
+    const docRef = doc(db, "Jadwal", id);
+    await updateDoc(docRef, {
+      name: name,
+      kegiatan1: kegiatan1,
+      kegiatan2: kegiatan2,
+    });
+    return true;
+  } catch (error) {
+    console.error("Error updating document: ", error);
+    return false;
   }
 }
 
@@ -42,6 +55,7 @@ const Jadwal = () => {
   const [showOverlay, setShowOverlay] = useState(false);
   const [showAlert, setShowAlert] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [editId, setEditId] = useState(null); // State for edit ID
 
   useEffect(() => {
     async function fetchData() {
@@ -53,21 +67,43 @@ const Jadwal = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const docId = await addDataToFirestore(name, kegiatan1, kegiatan2);
-    if (docId) {
-      setName("");
-      setKegiatan1("");
-      setKegiatan2("");
-      setShowAlert("Data berhasil ditambahkan!");
+    if (editId) {
+      const success = await updateDataInFirestore(editId, name, kegiatan1, kegiatan2);
+      if (success) {
+        const updatedData = jadwalData.map((jadwal) => (jadwal.id === editId ? { id: editId, name, kegiatan1, kegiatan2 } : jadwal));
+        setJadwalData(updatedData);
+        setShowAlert("Data berhasil diperbarui!");
+      }
+    } else {
+      const docId = await addDataToFirestore(name, kegiatan1, kegiatan2);
+      if (docId) {
+        setName("");
+        setKegiatan1("");
+        setKegiatan2("");
+        setShowAlert("Data berhasil ditambahkan!");
+      }
     }
+    setShowOverlay(false);
   };
 
   const handleAddPostClick = () => {
+    setEditId(null);
+    setName("");
+    setKegiatan1("");
+    setKegiatan2("");
     setShowOverlay(true); // Menampilkan overlay ketika tombol "Tambah" diklik
   };
 
   const handleCloseOverlay = () => {
     setShowOverlay(false); // Menyembunyikan overlay ketika tombol close di dalam overlay diklik
+  };
+
+  const handleEdit = (jadwal) => {
+    setEditId(jadwal.id);
+    setName(jadwal.name);
+    setKegiatan1(jadwal.kegiatan1);
+    setKegiatan2(jadwal.kegiatan2);
+    setShowOverlay(true); // Menampilkan overlay ketika tombol edit diklik
   };
 
   const handleDelete = async (id) => {
@@ -140,7 +176,7 @@ const Jadwal = () => {
                       </td>
                       <td className="border py-2">
                         <div className="flex items-center justify-evenly">
-                          <button className="rounded-xl h-10 w-10  bg-[#dddf88] items-center flex justify-center flex-col">
+                          <button className="rounded-xl h-10 w-10  bg-[#dddf88] items-center flex justify-center flex-col" onClick={() => handleEdit(jadwal)}>
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5">
                               <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
                               <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
@@ -184,110 +220,112 @@ const Jadwal = () => {
             </div>
           </div>
         </div>
-      </div>
-      {showOverlay && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-          <div className="bg-white p-8 rounded-lg w-[60rem] h-[30rem]">
-            {/* tombol untuk menutup overflay */}
-            <button type="button" className="rounded-full h-10 w-10 bg-[#f1eeee] items-center flex justify-center" onClick={handleCloseOverlay}>
-              <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="#000000" className="w-5">
-                <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
-                <g id="SVGRepo_iconCarrier">
-                  <path
-                    fill="#000000"
-                    d="M195.2 195.2a64 64 0 0 1 90.496 0L512 421.504 738.304 195.2a64 64 0 0 1 90.496 90.496L602.496 512 828.8 738.304a64 64 0 0 1-90.496 90.496L512 602.496 285.696 828.8a64 64 0 0 1-90.496-90.496L421.504 512 195.2 285.696a64 64 0 0 1 0-90.496z"
-                  ></path>
-                </g>
-              </svg>
-            </button>
-            <p className="text-[#000] font-semibold text-3xl ms-10">Post Profil</p>
-            <form className="h-[19rem] w-full border border-[#a8a0a0] rounded-xl mt-3" onSubmit={handleSubmit}>
-              <div className="mx-10 mt-5">
-                <label htmlFor="nama">Nama Eskul</label>
-                <input id="nama" type="text" className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" value={name} onChange={(e) => setName(e.target.value)} required />
-              </div>
-              <p className="text-center mt-4">Kegiatan Eskul</p>
-              <div className="grid grid-cols-2 gap-4 mx-10">
-                <div>
-                  <label htmlFor="kegiatan1">Kegiatan 1</label>
-                  <div className="relative">
-                    <select
-                      name="cars"
-                      id="kegiatan1"
-                      className="appearance-none w-full bg-transparent border border-[#a8a0a0] py-3 pl-3 rounded-xl leading-tight focus:outline-none focus:bg-[#5f5a5a] focus:border-[#fff] text-[#d6d6d6]"
-                      value={kegiatan1}
-                      onChange={(e) => setKegiatan1(e.target.value)}
-                      required
-                    >
-                      <option value="">Hari</option>
-                      <option value="senin">Senin</option>
-                      <option value="selasa">Selasa</option>
-                      <option value="rabu">Rabu</option>
-                      <option value="kamis">Kamis</option>
-                      <option value="jumat">Jumat</option>
-                      <option value="sabtu">Sabtu</option>
-                      <option value="minggu">Minggu</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-center px-02 h-2.5rem] w-12 bg-gray-500 rounded-r-xl text-[#fff]">
-                      <svg className="fill-current h-7 w-7" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="kegiatan2">Kegiatan 2</label>
-                  <div className="relative">
-                    <select
-                      name="cars"
-                      id="kegiatan2"
-                      className="appearance-none w-full bg-transparent border border-[#a8a0a0] py-3 pl-3 rounded-xl leading-tight focus:outline-none focus:bg-[#5f5a5a] focus:border-[#fff] text-[#d6d6d6]"
-                      value={kegiatan2}
-                      onChange={(e) => setKegiatan2(e.target.value)}
-                      required
-                    >
-                      <option value="">Hari</option>
-                      <option value="Senin">Senin</option>
-                      <option value="Selasa">Selasa</option>
-                      <option value="rabu">Rabu</option>
-                      <option value="kamis">Kamis</option>
-                      <option value="jumat">Jumat</option>
-                      <option value="sabtu">Sabtu</option>
-                      <option value="minggu">Minggu</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-center px-02 h-2.5rem] w-12 bg-gray-500 rounded-r-xl text-[#fff]">
-                      <svg className="fill-current h-7 w-7" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="mx-10 justify-start flex">
-                <button className="h-10 w-[5rem] mt-8 rounded-xl bg-gray-500 text-[#fff]" type="submit">
-                  Post
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      {showAlert && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="bg-[#dfd5d5] rounded-lg shadow-lg p-8">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-800">Success!</h2>
-              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowAlert(false)}>
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        {/* overlay */}
+        {showOverlay && (
+          <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
+            <div className="bg-white p-8 rounded-lg w-[60rem] h-[30rem]">
+              <button type="button" className="rounded-full h-10 w-10 bg-[#f1eeee] items-center flex justify-center" onClick={handleCloseOverlay}>
+                <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="#000000" className="w-5">
+                  <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                  <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+                  <g id="SVGRepo_iconCarrier">
+                    <path
+                      fill="#000000"
+                      d="M195.2 195.2a64 64 0 0 1 90.496 0L512 421.504 738.304 195.2a64 64 0 0 1 90.496 90.496L602.496 512 828.8 738.304a64 64 0 0 1-90.496 90.496L512 602.496 285.696 828.8a64 64 0 0 1-90.496-90.496L421.504 512 195.2 285.696a64 64 0 0 1 0-90.496z"
+                    ></path>
+                  </g>
                 </svg>
               </button>
+              <p className="text-[#000] font-semibold text-3xl ms-10">{editId ? "Edit Jadwal" : "Post Jadwal"}</p>
+              <form className="h-[19rem] w-full border border-[#a8a0a0] rounded-xl mt-3" onSubmit={handleSubmit}>
+                <div className="mx-10 mt-5">
+                  <label htmlFor="nama">Nama Eskul</label>
+                  <input id="nama" type="text" value={name} onChange={(e) => setName(e.target.value)} className="h-[3rem] rounded-xl border border-[#a8a0a0] w-full focus:outline-none px-4" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mx-10 mt-3">
+                  <div>
+                    <label htmlFor="kegiatan1">Kegiatan 1</label>
+                    <div className="relative">
+                      <select
+                        name="cars"
+                        id="kegiatan1"
+                        className="appearance-none w-full bg-transparent border border-[#a8a0a0] py-3 pl-3 rounded-xl leading-tight focus:outline-none focus:bg-[#5f5a5a] focus:border-[#fff] text-[#d6d6d6]"
+                        value={kegiatan1}
+                        onChange={(e) => setKegiatan1(e.target.value)}
+                        required
+                      >
+                        <option value="">Hari</option>
+                        <option value="Senin">Senin</option>
+                        <option value="Selasa">Selasa</option>
+                        <option value="Rabu">Rabu</option>
+                        <option value="Kamis">Kamis</option>
+                        <option value="Jum'at">Jumat</option>
+                        <option value="Sabtu">Sabtu</option>
+                        <option value="Minggu">Minggu</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-center px-02 h-2.5rem] w-12 bg-gray-500 rounded-r-xl text-[#fff]">
+                        <svg className="fill-current h-7 w-7" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="kegiatan2">Kegiatan 2</label>
+                    <div className="relative">
+                      <select
+                        name="cars"
+                        id="kegiatan2"
+                        className="appearance-none w-full bg-transparent border border-[#a8a0a0] py-3 pl-3 rounded-xl leading-tight focus:outline-none focus:bg-[#5f5a5a] focus:border-[#fff] text-[#d6d6d6]"
+                        value={kegiatan2}
+                        onChange={(e) => setKegiatan2(e.target.value)}
+                        required
+                      >
+                        <option value="">Hari</option>
+                        <option value="Senin">Senin</option>
+                        <option value="Selasa">Selasa</option>
+                        <option value="Rabu">Rabu</option>
+                        <option value="Kamis">Kamis</option>
+                        <option value="Jum'at">Jumat</option>
+                        <option value="Sabtu">Sabtu</option>
+                        <option value="Minggu">Minggu</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-center px-02 h-2.5rem] w-12 bg-gray-500 rounded-r-xl text-[#fff]">
+                        <svg className="fill-current h-7 w-7" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mx-10 justify-start flex">
+                  <button className="h-10 w-[5rem] mt-8 rounded-xl bg-gray-500 text-[#fff]" type="submit">
+                    {editId ? "Update" : "Post"}
+                  </button>
+                </div>
+              </form>
             </div>
-            <p className="text-gray-700 mt-2">{showAlert}</p>
           </div>
-        </div>
-      )}
+        )}
+        {/* alert */}
+        {showAlert && (
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-[#dfd5d5] rounded-lg shadow-lg p-8">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-800">Success!</h2>
+                <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowAlert(false)}>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-gray-700 mt-2">{showAlert}</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
